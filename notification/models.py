@@ -4,7 +4,7 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
-
+    
 from django.db import models
 from django.db.models.query import QuerySet
 from django.conf import settings
@@ -13,8 +13,12 @@ from django.template import Context
 from django.template.loader import render_to_string
 
 from django.core.exceptions import ImproperlyConfigured
+from notification import NOTIFICATION_USE_SITE, NOTIFICATION_QUEUE_ALL, \
+       NOTIFICATION_LANGUAGE_MODULE, DEFAULT_HTTP_PROTOCOL, NOTIFICATION_DEFAULT_SITE_NAME
 
-from django.contrib.sites.models import Site
+if NOTIFICATION_USE_SITE:
+    from django.contrib.sites.models import Site
+
 from django.contrib.auth.models import User
 from django.contrib.auth.models import AnonymousUser
 
@@ -29,8 +33,6 @@ if 'mailer' in settings.INSTALLED_APPS:
     from mailer import send_mail
 else:
     from django.core.mail import send_mail
-
-QUEUE_ALL = getattr(settings, "NOTIFICATION_QUEUE_ALL", False)
 
 class LanguageStoreNotAvailable(Exception):
     pass
@@ -202,9 +204,9 @@ def get_notification_language(user):
     LanguageStoreNotAvailable if this site does not use translated
     notifications.
     """
-    if getattr(settings, 'NOTIFICATION_LANGUAGE_MODULE', False):
+    if NOTIFICATION_LANGUAGE_MODULE:
         try:
-            app_label, model_name = settings.NOTIFICATION_LANGUAGE_MODULE.split('.')
+            app_label, model_name = NOTIFICATION_LANGUAGE_MODULE.split('.')
             model = models.get_model(app_label, model_name)
             language_model = model._default_manager.get(user__id__exact=user.id)
             if hasattr(language_model, 'language'):
@@ -230,7 +232,7 @@ def get_formatted_messages(formats, label, context):
             'notification/%s' % format), context_instance=context)
     return format_templates
 
-def send_now(users, label, extra_context=None, on_site=True):
+def send_now(users, label, extra_context=None, on_site=True, current_site=None, notices_url = None):
     """
     Creates a new notice.
 
@@ -249,14 +251,22 @@ def send_now(users, label, extra_context=None, on_site=True):
 
     notice_type = NoticeType.objects.get(label=label)
 
-    protocol = getattr(settings, "DEFAULT_HTTP_PROTOCOL", "http")
-    current_site = Site.objects.get_current()
+    protocol = DEFAULT_HTTP_PROTOCOL
+    if current_site is None:
+       if NOTIFICATION_USE_SITE:
+           current_site = Site.objects.get_current()
+       else:
+           current_site = NOTIFICATION_DEFAULT_SITE_NAME
 
-    notices_url = u"%s://%s%s" % (
-        protocol,
-        unicode(current_site),
-        reverse("notification_notices"),
-    )
+    if notices_url is None:
+       if NOTIFICATION_USE_SITE:
+           notices_url = u"%s://%s%s" % (
+               protocol,
+               unicode(current_site),
+               reverse("notification_notices"),
+           )
+       else:
+           notices_url = ""
 
     current_language = get_language()
 
@@ -281,12 +291,13 @@ def send_now(users, label, extra_context=None, on_site=True):
             activate(language)
 
         # update context with user specific translations
+
         context = Context({
             "user": user,
             "notice": ugettext(notice_type.display),
-            "notices_url": notices_url,
-            "current_site": current_site,
-        })
+           "notices_url": notices_url,
+           "current_site": current_site,
+       })
         context.update(extra_context)
 
         # get prerendered format messages
@@ -325,7 +336,7 @@ def send(*args, **kwargs):
     elif now_flag:
         return send_now(*args, **kwargs)
     else:
-        if QUEUE_ALL:
+        if NOTIFICATION_QUEUE_ALL:
             return queue(*args, **kwargs)
         else:
             return send_now(*args, **kwargs)

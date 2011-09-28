@@ -5,16 +5,19 @@ from django.template import RequestContext
 from django.contrib.auth.decorators import login_required
 from django.contrib.syndication.views import feed
 
+from notification import NOTIFICATION_FEEDS
 from notification.models import *
 from notification.decorators import basic_auth_required, simple_basic_auth_callback
-from notification.feeds import NoticeUserFeed
 
-@basic_auth_required(realm='Notices Feed', callback_func=simple_basic_auth_callback)
-def feed_for_user(request):
-    url = "feed/%s" % request.user.username
-    return feed(request, url, {
-        "feed": NoticeUserFeed,
-    })
+if NOTIFICATION_FEEDS:
+    from notification.feeds import NoticeUserFeed
+
+    @basic_auth_required(realm='Notices Feed', callback_func=simple_basic_auth_callback)
+    def feed_for_user(request):
+       url = "feed/%s" % request.user.username
+       return feed(request, url, {
+           "feed": NoticeUserFeed,
+       })
 
 @login_required
 def notices(request):
@@ -40,10 +43,19 @@ def notices(request):
         "rows": settings_table,
     }
     
+    archive_url = "%sarchive" % reverse("notification_notices")
+    delete_url = "%sdelete" % reverse("notification_notices")
+    archive_all_url = "%smark_all_seen" % reverse("notification_notices")
+    delete_all_url = "%sdelete_all" % reverse("notification_notices")
+    
     return render_to_response("notification/notices.html", {
         "notices": notices,
         "notice_types": notice_types,
         "notice_settings": notice_settings,
+        "archive_url": archive_url,
+        "delete_url": delete_url,
+        "archive_all_url": archive_all_url,
+        "delete_all_url": delete_all_url,
     }, context_instance=RequestContext(request))
 
 @login_required
@@ -57,6 +69,8 @@ def single(request, id):
 
 @login_required
 def archive(request, noticeid=None, next_page=None):
+    if next_page:
+       reverse("notification_notices")
     if noticeid:
         try:
             notice = Notice.objects.get(id=noticeid)
@@ -71,6 +85,8 @@ def archive(request, noticeid=None, next_page=None):
 
 @login_required
 def delete(request, noticeid=None, next_page=None):
+    if not next_page:
+       next_page = reverse("notification_notices")
     if noticeid:
         try:
             notice = Notice.objects.get(id=noticeid)
@@ -84,9 +100,18 @@ def delete(request, noticeid=None, next_page=None):
     return HttpResponseRedirect(next_page)
 
 @login_required
+def delete_all(request, next_page=None):
+    if not next_page:
+       next_page = reverse("notification_notices")
+    
+    notices = Notice.objects.notices_for(request.user, on_site=True).filter(archived=False)
+    if request.user.is_superuser:
+        notices.delete()
+    return HttpResponseRedirect(next_page)
+
+@login_required
 def mark_all_seen(request):
     for notice in Notice.objects.notices_for(request.user, unseen=True):
         notice.unseen = False
         notice.save()
     return HttpResponseRedirect(reverse("notification_notices"))
-    

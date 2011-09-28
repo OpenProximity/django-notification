@@ -1,19 +1,15 @@
 from datetime import datetime
 
 from django.core.urlresolvers import reverse
-from django.conf import settings
 from django.contrib.sites.models import Site
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import linebreaks, escape, striptags
 from django.utils.translation import ugettext_lazy as _
 
+from notification import NOTIFICATION_ITEMS_PER_FEED, DEFAULT_HTTP_PROTOCOL
 from notification.models import Notice
 from notification.atomformat import Feed
-
-
-ITEMS_PER_FEED = getattr(settings, 'ITEMS_PER_FEED', 20)
-DEFAULT_HTTP_PROTOCOL = getattr(settings, "DEFAULT_HTTP_PROTOCOL", "http")
 
 
 class BaseNoticeFeed(Feed):
@@ -75,4 +71,4 @@ class NoticeUserFeed(BaseNoticeFeed):
         return ({'href': complete_url},)
 
     def items(self, user):
-        return Notice.objects.notices_for(user).order_by("-added")[:ITEMS_PER_FEED]
+        return Notice.objects.notices_for(user).order_by("-added")[:NOTIFICATION_ITEMS_PER_FEED]

@@ -9,26 +9,27 @@ try:
 except ImportError:
     import pickle
 
-from django.conf import settings
 from django.core.mail import mail_admins
 from django.contrib.auth.models import User
-from django.contrib.sites.models import Site
+
+from notification import NOTIFICATION_USE_SITE, NOTIFICATION_DEFAULT_SITE_NAME, NOTIFICATION_LOCK_WAIT_TIMEOUT
+
+if NOTIFICATION_USE_SITE:
+    from django.contrib.sites.models import Site
+else:
+    Site = None
 
 from lockfile import FileLock, AlreadyLocked, LockTimeout
 
 from notification.models import NoticeQueueBatch
 from notification import models as notification
 
-# lock timeout value. how long to wait for the lock to become available.
-# default behavior is to never wait for the lock to be available.
-LOCK_WAIT_TIMEOUT = getattr(settings, "NOTIFICATION_LOCK_WAIT_TIMEOUT", -1)
-
 def send_all():
     lock = FileLock("send_notices")
 
     logging.debug("acquiring lock...")
     try:
-        lock.acquire(LOCK_WAIT_TIMEOUT)
+        lock.acquire(NOTIFICATION_LOCK_WAIT_TIMEOUT)
     except AlreadyLocked:
         logging.debug("lock already in place. quitting.")
         return
@@ -58,8 +59,17 @@ def send_all():
             # get the exception
             exc_class, e, t = sys.exc_info()
             # email people
-            current_site = Site.objects.get_current()
-            subject = "[%s emit_notices] %r" % (current_site.name, e)
+            
+            if NOTIFICATION_USE_SITE:
+               name = Site.objects.get_current().name
+           elif NOTIFICATION_DEFAULT_SITE_NAME:
+               name = NOTIFICATION_DEFAULT_SITE_NAME
+           else:
+               # don't display None, display just a space
+               name = ""
+
+           subject = "[%s emit_notices] %r" % (name, e)
+               
             message = "%s" % ("\n".join(traceback.format_exception(*sys.exc_info())),)
             mail_admins(subject, message, fail_silently=True)
             # log it as critical
