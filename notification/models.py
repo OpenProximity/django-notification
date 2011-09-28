@@ -9,7 +9,7 @@ from django.db import models
 from django.db.models.query import QuerySet
 from django.conf import settings
 from django.core.urlresolvers import reverse
-from django.template import Context
+from django.template import Context, Template
 from django.template.loader import render_to_string
 
 from django.core.exceptions import ImproperlyConfigured
@@ -215,7 +215,7 @@ def get_notification_language(user):
             raise LanguageStoreNotAvailable
     raise LanguageStoreNotAvailable
 
-def get_formatted_messages(formats, label, context):
+def get_formatted_messages(formats, label, context, templates = None):
     """
     Returns a dictionary with the format identifier as the key. The values are
     are fully rendered templates with the given context.
@@ -227,12 +227,18 @@ def get_formatted_messages(formats, label, context):
             context.autoescape = False
         else:
             context.autoescape = True
-        format_templates[format] = render_to_string((
-            'notification/%s/%s' % (label, format),
-            'notification/%s' % format), context_instance=context)
+        if not templates:
+           format_templates[format] = render_to_string((
+           'notification/%s/%s' % (label, format),
+           'notification/%s' % format), context_instance=context)
+       else:
+           format_templates[format] = Template(templates[format])
+           format_templates[format] = Template(templates[format]).render(context)
+
     return format_templates
 
-def send_now(users, label, extra_context=None, on_site=True, current_site=None, notices_url = None):
+def send_now(users, label, extra_context=None, on_site=True, \
+    current_site=None, notices_url = None, templates = None):
     """
     Creates a new notice.
 
@@ -270,12 +276,13 @@ def send_now(users, label, extra_context=None, on_site=True, current_site=None, 
 
     current_language = get_language()
 
-    formats = (
-        'short.txt',
-        'full.txt',
-        'notice.html',
-        'full.html',
-    ) # TODO make formats configurable
+    if not templates:
+       formats = (
+           'short.txt',
+           'full.txt',
+           'notice.html',
+           'full.html',
+       ) # TODO make formats configurable
 
     for user in users:
         recipients = []
@@ -301,7 +308,13 @@ def send_now(users, label, extra_context=None, on_site=True, current_site=None, 
         context.update(extra_context)
 
         # get prerendered format messages
-        messages = get_formatted_messages(formats, label, context)
+       formats = (
+           'short.txt',
+           'full.txt',
+           'notice.html',
+           'full.html',
+       )
+       messages = get_formatted_messages(formats, label, context, templates)
 
         # Strip newlines from subject
         subject = ''.join(render_to_string('notification/email_subject.txt', {
