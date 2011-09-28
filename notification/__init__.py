@@ -10,7 +10,7 @@ __version__ = get_version()
 
 try:
     from django.conf import settings
-	# default configuration
+    # default configuration
     NOTIFICATION_DEFAULT_SITE_NAME = getattr(settings, 
                                              'NOTIFICATION_DEFAULT_SITE_NAME', 
                                              'Django Notifications')
@@ -35,5 +35,5 @@ try:
     DEFAULT_HTTP_PROTOCOL = getattr(settings, 
                                     "DEFAULT_HTTP_PROTOCOL", 
                                     "http")
-except:
-	pass
+except ImportError:
+    pass
