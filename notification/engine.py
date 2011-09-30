@@ -62,13 +62,13 @@ def send_all():
             
             if NOTIFICATION_USE_SITE:
                name = Site.objects.get_current().name
-           elif NOTIFICATION_DEFAULT_SITE_NAME:
+            elif NOTIFICATION_DEFAULT_SITE_NAME:
                name = NOTIFICATION_DEFAULT_SITE_NAME
-           else:
+            else:
                # don't display None, display just a space
                name = ""
 
-           subject = "[%s emit_notices] %r" % (name, e)
+            subject = "[%s emit_notices] %r" % (name, e)
                
             message = "%s" % ("\n".join(traceback.format_exception(*sys.exc_info())),)
             mail_admins(subject, message, fail_silently=True)

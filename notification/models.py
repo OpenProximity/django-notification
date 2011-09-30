@@ -231,7 +231,7 @@ def get_formatted_messages(formats, label, context, templates = None):
            format_templates[format] = render_to_string((
            'notification/%s/%s' % (label, format),
            'notification/%s' % format), context_instance=context)
-       else:
+        else:
            format_templates[format] = Template(templates[format])
            format_templates[format] = Template(templates[format]).render(context)
 
@@ -308,13 +308,13 @@ def send_now(users, label, extra_context=None, on_site=True, \
         context.update(extra_context)
 
         # get prerendered format messages
-       formats = (
+        formats = (
            'short.txt',
            'full.txt',
            'notice.html',
            'full.html',
-       )
-       messages = get_formatted_messages(formats, label, context, templates)
+        )
+        messages = get_formatted_messages(formats, label, context, templates)
 
         # Strip newlines from subject
         subject = ''.join(render_to_string('notification/email_subject.txt', {
