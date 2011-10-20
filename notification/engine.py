@@ -12,7 +12,8 @@ except ImportError:
 from django.core.mail import mail_admins
 from django.contrib.auth.models import User
 
-from notification import NOTIFICATION_USE_SITE, NOTIFICATION_DEFAULT_SITE_NAME, NOTIFICATION_LOCK_WAIT_TIMEOUT
+from notification import NOTIFICATION_USE_SITE, \
+    NOTIFICATION_DEFAULT_SITE_NAME, NOTIFICATION_LOCK_WAIT_TIMEOUT
 
 if NOTIFICATION_USE_SITE:
     from django.contrib.sites.models import Site
@@ -45,12 +46,13 @@ def send_all():
         # nesting the try statement to be Python 2.4
         try:
             for queued_batch in NoticeQueueBatch.objects.all():
-                notices = pickle.loads(str(queued_batch.pickled_data).decode("base64"))
+                notices = pickle.loads(
+                    str(queued_batch.pickled_data).decode("base64"))
                 for user, label, extra_context, on_site in notices:
                     user = User.objects.get(pk=user)
                     logging.info("emitting notice to %s" % user)
-                    # call this once per user to be atomic and allow for logging to
-                    # accurately show how long each takes.
+                    # call this once per user to be atomic and allow for 
+                    # logging to accurately show how long each takes.
                     notification.send_now([user], label, extra_context, on_site)
                     sent += 1
                 queued_batch.delete()
@@ -61,16 +63,17 @@ def send_all():
             # email people
             
             if NOTIFICATION_USE_SITE:
-               name = Site.objects.get_current().name
-           elif NOTIFICATION_DEFAULT_SITE_NAME:
-               name = NOTIFICATION_DEFAULT_SITE_NAME
-           else:
-               # don't display None, display just a space
-               name = ""
+                name = Site.objects.get_current().name
+            elif NOTIFICATION_DEFAULT_SITE_NAME:
+                name = NOTIFICATION_DEFAULT_SITE_NAME
+            else:
+                # don't display None, display just a space
+                name = ""
 
-           subject = "[%s emit_notices] %r" % (name, e)
+            subject = "[%s emit_notices] %r" % (name, e)
                
-            message = "%s" % ("\n".join(traceback.format_exception(*sys.exc_info())),)
+            message = "%s" % ("\n".join(
+                    traceback.format_exception(*sys.exc_info())),)
             mail_admins(subject, message, fail_silently=True)
             # log it as critical
             logging.critical("an exception occurred: %r" % e)

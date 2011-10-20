@@ -14,7 +14,8 @@ from django.template.loader import render_to_string
 
 from django.core.exceptions import ImproperlyConfigured
 from notification import NOTIFICATION_USE_SITE, NOTIFICATION_QUEUE_ALL, \
-       NOTIFICATION_LANGUAGE_MODULE, DEFAULT_HTTP_PROTOCOL, NOTIFICATION_DEFAULT_SITE_NAME
+       NOTIFICATION_LANGUAGE_MODULE, DEFAULT_HTTP_PROTOCOL, \
+       NOTIFICATION_DEFAULT_SITE_NAME
 
 if NOTIFICATION_USE_SITE:
     from django.contrib.sites.models import Site
@@ -38,12 +39,12 @@ class LanguageStoreNotAvailable(Exception):
     pass
 
 class NoticeType(models.Model):
-
     label = models.CharField(_('label'), max_length=40)
     display = models.CharField(_('display'), max_length=50)
     description = models.CharField(_('description'), max_length=100)
 
-    # by default only on for media with sensitivity less than or equal to this number
+    # by default only on for media with sensitivity less than or equal to this 
+    # number
     default = models.IntegerField(_('default'))
 
     def __unicode__(self):
@@ -82,10 +83,12 @@ class NoticeSetting(models.Model):
 
 def get_notification_setting(user, notice_type, medium):
     try:
-        return NoticeSetting.objects.get(user=user, notice_type=notice_type, medium=medium)
+        return NoticeSetting.objects.get(user=user, notice_type=notice_type, 
+                                         medium=medium)
     except NoticeSetting.DoesNotExist:
         default = (NOTICE_MEDIA_DEFAULTS[medium] <= notice_type.default)
-        setting = NoticeSetting(user=user, notice_type=notice_type, medium=medium, send=default)
+        setting = NoticeSetting(user=user, notice_type=notice_type, 
+                                medium=medium, send=default)
         setting.save()
         return setting
 
@@ -194,7 +197,8 @@ def create_notice_type(label, display, description, default=2, verbosity=1):
             if verbosity > 1:
                 print "Updated %s NoticeType" % label
     except NoticeType.DoesNotExist:
-        NoticeType(label=label, display=display, description=description, default=default).save()
+        NoticeType(label=label, display=display, description=description, 
+                   default=default).save()
         if verbosity > 1:
             print "Created %s NoticeType" % label
 
@@ -231,9 +235,10 @@ def get_formatted_messages(formats, label, context, templates = None):
            format_templates[format] = render_to_string((
            'notification/%s/%s' % (label, format),
            'notification/%s' % format), context_instance=context)
-       else:
-           format_templates[format] = Template(templates[format])
-           format_templates[format] = Template(templates[format]).render(context)
+        else:
+            format_templates[format] = Template(templates[format])
+            format_templates[format] = Template(templates[format]).\
+                render(context)
 
     return format_templates
 
@@ -304,29 +309,30 @@ def send_now(users, label, extra_context=None, on_site=True, \
             "notice": ugettext(notice_type.display),
            "notices_url": notices_url,
            "current_site": current_site,
-       })
+            })
         context.update(extra_context)
 
         # get prerendered format messages
-       formats = (
-           'short.txt',
-           'full.txt',
-           'notice.html',
-           'full.html',
-       )
-       messages = get_formatted_messages(formats, label, context, templates)
+        formats = (
+            'short.txt',
+            'full.txt',
+            'notice.html',
+            'full.html',
+            )
+        messages = get_formatted_messages(formats, label, context, templates)
 
         # Strip newlines from subject
         subject = ''.join(render_to_string('notification/email_subject.txt', {
-            'message': messages['short.txt'],
-        }, context).splitlines())
+                    'message': messages['short.txt'],
+                    }, context).splitlines())
 
         body = render_to_string('notification/email_body.txt', {
-            'message': messages['full.txt'],
-        }, context)
+                'message': messages['full.txt'],
+                }, context)
 
-        notice = Notice.objects.create(user=user, message=messages['notice.html'],
-            notice_type=notice_type, on_site=on_site)
+        notice = Notice.objects.create(user=user, 
+                                       message=messages['notice.html'],
+                                       notice_type=notice_type, on_site=on_site)
         if should_send(user, notice_type, "1") and user.email: # Email
             recipients.append(user.email)
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, recipients)
@@ -379,12 +385,15 @@ class ObservedItemManager(models.Manager):
         to be sent when a signal is emited.
         """
         content_type = ContentType.objects.get_for_model(observed)
-        observed_items = self.filter(content_type=content_type, object_id=observed.id, signal=signal)
+        observed_items = self.filter(content_type=content_type, 
+                                     object_id=observed.id, signal=signal)
         return observed_items
 
     def get_for(self, observed, observer, signal):
         content_type = ContentType.objects.get_for_model(observed)
-        observed_item = self.get(content_type=content_type, object_id=observed.id, user=observer, signal=signal)
+        observed_item = self.get(content_type=content_type, 
+                                 object_id=observed.id, user=observer, 
+                                 signal=signal)
         return observed_item
 
 
@@ -419,7 +428,8 @@ def observe(observed, observer, notice_type_label, signal='post_save'):
     """
     Create a new ObservedItem.
 
-    To be used by applications to register a user as an observer for some object.
+    To be used by applications to register a user as an observer for some 
+    object.
     """
     notice_type = NoticeType.objects.get(label=notice_type_label)
     observed_item = ObservedItem(user=observer, observed_object=observed,
@@ -447,7 +457,8 @@ def is_observing(observed, observer, signal='post_save'):
     if isinstance(observer, AnonymousUser):
         return False
     try:
-        observed_items = ObservedItem.objects.get_for(observed, observer, signal)
+        observed_items = ObservedItem.objects.get_for(observed, observer, 
+                                                      signal)
         return True
     except ObservedItem.DoesNotExist:
         return False
